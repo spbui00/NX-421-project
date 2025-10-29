@@ -2,15 +2,15 @@
 import os, os.path as op, sys, subprocess
 from utils import loadFSL, launch_fsleyes
 
+#Load FSL and dataset
 fsldir = loadFSL()
-#Load dataset
 #Note: Set SUBJECT_ROOT to your local path to the subject folder or create a symlink called ~/subject101410 that points to the folder (especially if there are spaces in your path name)
 SUBJECT_ROOT = ""
 dataset_root = os.path.expanduser(SUBJECT_ROOT.strip() or "~/subject101410")
 t1 = os.path.join(dataset_root, "T1w", "T1w.nii.gz") 
 
 #Create output folders for the preprocessed images
-outdir = os.path.join(dataset_root, "derivatives", "preprocessed_data")
+outdir = os.path.join(dataset_root, "derivatives", "preprocessed_struc")
 os.makedirs(outdir, exist_ok=True)
 base = op.splitext(op.splitext(op.basename(t1))[0])[0] #raw image
 outbase = op.join(outdir, base + "_brain")  #BET prefix (skull stripped image)
