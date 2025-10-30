@@ -59,7 +59,7 @@ fsl_add(mc_out)
 fsl_show()
 #%%
 #Identify high-FD volumes that need to be removed (FD>threshold)
-thr = 0.5
+thr = 0.4
 par_path = mc_out + ".par"
 #Compute & plot FD on the full (unscrubbed) series ---
 fd_plot_before = op.join(outdir, "fd_plot_before_removal.png")
