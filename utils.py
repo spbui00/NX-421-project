@@ -1,5 +1,8 @@
 #Helper functions for launching FSLeyes locally and some plotting functions
-import os, os.path as op, shutil, subprocess, sys
+import os, os.path as op, shutil, subprocess
+
+_FSL_OVERLAYS = []   
+_FSL_PROC = None     
 
 def loadFSL(fsldir=None):
     fsldir = fsldir or os.environ.get("FSLDIR") or op.expanduser("~/fsl")
@@ -11,28 +14,35 @@ def loadFSL(fsldir=None):
     os.environ.setdefault("FSLOUTPUTTYPE", "NIFTI_GZ")
     return fsldir
 
-def launch_fsleyes(image=None, extra_args=None):
-    import shutil, subprocess, os.path as op
-    loadFSL()  # ensure FSLDIR/bin is on PATH
+def fsl_reset():
+    """Clear the staged overlays/flags."""
+    _FSL_OVERLAYS.clear()
 
-    args = ["fsleyes"]
-    if extra_args:
-        args += [str(a) for a in extra_args]
-    if image is not None:
-        # (optional) only append if it exists; drop this check if you prefer
-        if op.exists(str(image)):
-            args.append(str(image))
-        else:
-            args.append(str(image)) 
-
-    if not shutil.which("fsleyes"):
-        raise RuntimeError("fsleyes not found on PATH. Install FSL/FSLeyes or source FSL first.")
-
-    if "--cliserver" in args:
-        subprocess.Popen(args)      
+def _add_one(arg):
+    # flatten lists/tuples so fsl_add(runs) and fsl_add(*runs) both work
+    if isinstance(arg, (list, tuple)):
+        for a in arg: _add_one(a)
     else:
-        subprocess.run(args, check=True)  
-    return 0
+        _FSL_OVERLAYS.append(str(arg))
+
+def fsl_add(*paths_or_opts):
+    """Stage overlays/flags to show next time you call fsl_show()."""
+    for a in paths_or_opts:
+        _add_one(a)
+
+def fsl_show(kill_old=True):
+    """Launch a new FSLeyes window containing all staged overlays/flags."""
+    global _FSL_PROC
+    loadFSL()
+    if not shutil.which("fsleyes"):
+        raise RuntimeError("fsleyes not found on PATH; source FSL first.")
+    # optionally close previous window so you don’t collect a thousand
+    if kill_old and _FSL_PROC is not None:
+        try: _FSL_PROC.terminate()
+        except Exception: pass
+        _FSL_PROC = None
+    _FSL_PROC = subprocess.Popen(["fsleyes", *_FSL_OVERLAYS] if _FSL_OVERLAYS else ["fsleyes"])
+    return _FSL_PROC
 
 def plot_fd_power(par_path, out_png, thr=0.3, keep=None,
                   break_gaps=True, save_values_path=None, return_fd=False):

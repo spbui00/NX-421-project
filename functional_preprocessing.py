@@ -1,14 +1,15 @@
 # Functional preprocessing (concatenation, motion correction, coregistration, smoothing)
 #%%
 import os, os.path as op, subprocess, numpy as np, nibabel as nib
-from utils import loadFSL, launch_fsleyes, plot_fd_power
+from utils import loadFSL, fsl_reset, fsl_add, fsl_show, plot_fd_power
 from nilearn.masking import compute_epi_mask
 from nilearn.image import concat_imgs
 
 #%%
 #load FSL and dataset
 fsldir = loadFSL()
-# Note: Set SUBJECT_ROOT to your local path to the subject folder or create a symlink ~/subject101410 -> <your subject folder>
+fsl_reset()
+# Note: Set SUBJECT_ROOT to your local path to the subject folder or create a symlink ~/subject101410 
 SUBJECT_ROOT = ""
 dataset_root = os.path.expanduser(SUBJECT_ROOT.strip() or "~/subject101410")
 fmri_root = op.join(dataset_root, "fMRI")
@@ -19,7 +20,8 @@ runs = [
 #Create output folders
 outdir = op.join(dataset_root, "derivatives", "preprocessed_func")
 os.makedirs(outdir, exist_ok=True)
-launch_fsleyes(image=None, extra_args=["--cliserver"] + runs)
+fsl_add(runs)
+fsl_show()
 
 #Not sure if we need to remove the first few volumes like in lab 3?? if so use FSL roi
 
@@ -42,7 +44,8 @@ def unit_var_rescale(run_path: str, outdir: str) -> str:
 normed = [unit_var_rescale(r, outdir) for r in runs] #normalize each run separately before concatenating
 concat_out = op.join(outdir, "MOTOR_concat_var1.nii.gz")
 nib.save(concat_imgs(normed), concat_out)
-launch_fsleyes(image=None, extra_args=["--cliserver", concat_out])
+fsl_add(concat_out)
+fsl_show()
 
 #%%
 #--PART 2: Motion Correction--
@@ -52,7 +55,8 @@ mc_out = op.join(outdir, "MOTOR_concat_mc.nii.gz")
 subprocess.run([
     "mcflirt", "-in", mc_in, "-out", mc_out, 
     "-plots", "-mats", "-meanvol" ], check=True) #motion correction using mean volume as reference
-
+fsl_add(mc_out)
+fsl_show()
 #%%
 #Identify high-FD volumes that need to be removed (FD>threshold)
 thr = 0.5
@@ -79,6 +83,8 @@ fd_vals_after = op.join(outdir, "fd_values_after.txt")
 plot_fd_power(
     par_path, fd_plot_after, thr=thr,
     keep=keep, break_gaps=True, save_values_path=fd_vals_after)
+fsl_add(scrub_out)
+fsl_show()
 
 #For subsequent steps, use scrub_out as the clean 4D series
 

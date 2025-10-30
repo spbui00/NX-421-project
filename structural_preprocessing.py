@@ -1,22 +1,22 @@
 #Structural preprocessing (skull stripping, tissue segmentation)
 import os, os.path as op, sys, subprocess
-from utils import loadFSL, launch_fsleyes
+from utils import loadFSL, fsl_reset, fsl_add, fsl_show
 
 #Load FSL and dataset
 fsldir = loadFSL()
+fsl_reset()
 #Note: Set SUBJECT_ROOT to your local path to the subject folder or create a symlink called ~/subject101410 that points to the folder (especially if there are spaces in your path name)
 SUBJECT_ROOT = ""
 dataset_root = os.path.expanduser(SUBJECT_ROOT.strip() or "~/subject101410")
 t1 = os.path.join(dataset_root, "T1w", "T1w.nii.gz") 
-
 #Create output folders for the preprocessed images
 outdir = os.path.join(dataset_root, "derivatives", "preprocessed_struc")
 os.makedirs(outdir, exist_ok=True)
 base = op.splitext(op.splitext(op.basename(t1))[0])[0] #raw image
 outbase = op.join(outdir, base + "_brain")  #BET prefix (skull stripped image)
 seg_base = op.join(outdir, base + "_fast")   #FAST prefix (tissue segmented image)
-
-launch_fsleyes(image=None, extra_args=["--cliserver", t1])
+fsl_add(t1)
+fsl_show()
 
 #Perform skull stripping with FSL BET
 cmd = ["bet", t1, outbase, "-R", "-f", "0.35", "-g", "-0.1", "-m"] #need to find optimal mask value
@@ -30,7 +30,8 @@ subprocess.run(["fslmaths", bet_mask, "-fillh", "-dilM", "-dilM", "-ero", "-bin"
 subprocess.run(["fslmaths", t1, "-mas", fixed_mask, fixed_brain], check=True)
 # use the stripped brain for segmentation
 brain = fixed_brain
-launch_fsleyes(image=None, extra_args=["--cliserver", brain])
+fsl_add(brain)
+fsl_show()
 
 #Perform tissue segmentation with FSL FAST
 print("Running FAST…")
@@ -44,12 +45,7 @@ ret = proc.wait()
 pve0 = seg_base + "_pve_0.nii.gz" #CSF
 pve1 = seg_base + "_pve_1.nii.gz" #GM
 pve2 = seg_base + "_pve_2.nii.gz" #WM
-launch_fsleyes(
-    image=None,
-    extra_args=[
-        "--cliserver",
-        pve0, "-cm", "red",   "-dr", "0", "1", "-a", "80",
-        pve1, "-cm", "green", "-dr", "0", "1", "-a", "80",
-        pve2, "-cm", "blue",  "-dr", "0", "1", "-a", "80",
-    ],
-)
+fsl_add(pve0, "-cm", "red",   "-dr", "0", "1", "-a", "80")   # CSF
+fsl_add(pve1, "-cm", "green", "-dr", "0", "1", "-a", "80")   # GM
+fsl_add(pve2, "-cm", "blue",  "-dr", "0", "1", "-a", "80")   # WM
+fsl_show() 
